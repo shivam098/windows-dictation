@@ -1,0 +1,29 @@
+# Dictation acceptance script for VoiceDictation.exe --self-test (see run.ps1).
+# Stops at the first failed check so nothing is ever typed into the wrong window.
+stoponfail
+wait 1000
+expecttitle: Dictation Lab
+expectfocus: Message
+clipboard
+ptt: Hello comma this is a test full stop
+expect: Hello, this is a test.
+# A leading space is added because the box already ends in a word.
+ptt: Second sentence.
+expect: test. Second sentence.
+# New lines use Shift+Enter, which chat apps treat as a line break instead of "send".
+ptt: First line new line second line
+expect: First line\nsecond line
+# Alt+Shift+Z: paste the last dictation again.
+again
+expect: second line First line
+ptt: Um, I think, uh, it works.
+expect: I think, it works.
+clipboard
+# Password fields are refused.
+keys: Tab
+expectfocus: Password
+ptt: secret words
+expectstatus: password field
+keys: Shift+Tab
+expectfocus: Message
+expectnot: secret words
