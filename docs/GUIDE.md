@@ -27,6 +27,11 @@ Press **Alt+Shift+H** (or tray › Dictation language). The first time, an 80 MB
 shows **HI + EN** while it's on. Hindi words are typed in Roman letters ("kal meeting hai"), English words stay English.
 Press Alt+Shift+H again for English, which is more accurate for English-only speech.
 
+If Hindi words come out wrong too often, choose tray › Dictation language › **Hindi + English — accurate**. It uses a much
+larger model (830 MB download, once): fewer mistakes, but a few seconds per phrase after you release the keys (about
+2.5 s on a Snapdragon X Elite, more on older PCs). Words still appear live while you speak. The pill shows
+**HI + EN · accurate**, and Alt+Shift+H then switches between English and this mode.
+
 ## Personal dictionary and snippets
 
 Tray › **Open settings file**, edit, save, and restart Voice Dictation.

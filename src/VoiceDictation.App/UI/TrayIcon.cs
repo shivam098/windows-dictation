@@ -32,16 +32,20 @@ internal sealed class TrayIcon : IDisposable
         _startAtSignIn = new ToolStripMenuItem("Start when I sign in", null, (_, _) => ToggleStartAtSignIn()) { Checked = IsStartAtSignIn() };
         var showPill = new ToolStripMenuItem("Always show status pill", null, (_, _) => overlay.Pinned = !overlay.Pinned);
         var english = new ToolStripMenuItem("English", null, (_, _) => host.SetDictationLanguage(hinglish: false));
-        var hinglish = new ToolStripMenuItem($"Hindi + English (typed in Roman letters)\t{settings.DictationLanguageHotkey}", null, (_, _) => host.SetDictationLanguage(hinglish: true));
-        var language = new ToolStripMenuItem("Dictation language");
-        language.DropDownItems.AddRange([english, hinglish]);
+        var hinglish = new ToolStripMenuItem("Hindi + English — fast (typed in Roman letters)", null, (_, _) => host.SetDictationLanguage(hinglish: true, accurate: false));
+        var hinglishAccurate = new ToolStripMenuItem("Hindi + English — accurate (slower; 830 MB download)", null, (_, _) => host.SetDictationLanguage(hinglish: true, accurate: true));
+
+        // The hotkey switches between English and whichever Hindi + English mode was chosen last.
+        var language = new ToolStripMenuItem($"Dictation language\t{settings.DictationLanguageHotkey}");
+        language.DropDownItems.AddRange([english, hinglish, hinglishAccurate]);
 
         var menu = new ContextMenuStrip();
         menu.Opening += (_, _) =>
         {
             showPill.Checked = overlay.Pinned;
             english.Checked = !host.HinglishDictation;
-            hinglish.Checked = host.HinglishDictation;
+            hinglish.Checked = host.HinglishDictation && !host.HinglishAccurate;
+            hinglishAccurate.Checked = host.HinglishDictation && host.HinglishAccurate;
         };
         menu.Items.Add(_status);
         menu.Items.Add(new ToolStripSeparator());

@@ -11,7 +11,7 @@
     <AssemblyName>VoiceDictation</AssemblyName>
     <RootNamespace>VoiceDictation.App</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <Version>0.1.0</Version>
+    <Version>0.2.0</Version>
     <Product>Voice Dictation</Product>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
     <!-- DPI awareness is declared in app.manifest for the WPF overlay; WinForms is only used for the tray icon. -->

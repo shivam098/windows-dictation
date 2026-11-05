@@ -14,6 +14,8 @@ Free push-to-talk dictation that runs completely on your PC: no account, no clou
 - **Clean text.** "um" and "uh" are removed; say "comma", "full stop", "question mark", "new line" for punctuation;
   "…scratch that…" drops the phrase before it; a personal dictionary fixes words it gets wrong.
 - **Hindi + English.** Press Alt+Shift+H to dictate Hinglish (Hindi is typed in Roman letters). Press again for English.
+  For fewer mistakes, tray › *Dictation language* › *Hindi + English — accurate* uses a larger model (a few seconds per
+  phrase, one-time 830 MB download); words still show live while you speak.
 - **Private by design.** The microphone is on only while you hold the keys. Speech is turned into text on this PC by
   [Whisper](https://github.com/openai/whisper); audio and text are never uploaded or saved.
 
@@ -78,6 +80,7 @@ Tray icon › **Open settings file** (`%APPDATA%\VoiceDictation\settings.json`),
 | `soundFeedback` | `true` | Short tones when recording starts and stops |
 | `microphoneDevice` | `-1` | Recording device index; -1 = Windows default |
 | `modelFile` | `ggml-small.en-q8_0.bin` | `ggml-base.en-q8_0.bin` is faster but less accurate |
+| `hinglishAccurateModelFile` | `ggml-hinglish-apex-q8_0.bin` | Model for *Hindi + English — accurate* (downloaded when first chosen) |
 | `pasteLastHotkey` / `dictationLanguageHotkey` | `Alt+Shift+Z` / `Alt+Shift+H` | Hotkeys |
 
 The tray menu also has: pause dictation keys, dictation language, always show the status pill, start when I sign in,
@@ -125,6 +128,6 @@ Releases are built by GitHub Actions when a `v*` tag is pushed (`.github/workflo
 
 Speech recognition by [whisper.cpp](https://github.com/ggml-org/whisper.cpp) through
 [Whisper.net](https://github.com/sandrohanea/whisper.net); voice activity detection by
-[Silero VAD](https://github.com/snakers4/silero-vad); Hindi + English model by
-[Oriserve](https://huggingface.co/Oriserve/Whisper-Hindi2Hinglish-Swift). See
+[Silero VAD](https://github.com/snakers4/silero-vad); Hindi + English models by
+Oriserve ([Swift](https://huggingface.co/Oriserve/Whisper-Hindi2Hinglish-Swift), [Apex](https://huggingface.co/Oriserve/Whisper-Hindi2Hinglish-Apex)). See
 [THIRD-PARTY-NOTICES](docs/THIRD-PARTY-NOTICES.md).
