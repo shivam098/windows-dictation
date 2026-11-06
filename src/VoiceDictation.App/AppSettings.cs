@@ -24,6 +24,9 @@ internal static class AppPaths
     /// <summary>Present while dictation uses the Hindi + English model.</summary>
     public static string HinglishDictationFlag => Path.Combine(DataDir, "dictation-hinglish");
 
+    /// <summary>Present while Hindi + English dictation uses the larger, more accurate (slower) model.</summary>
+    public static string HinglishAccurateFlag => Path.Combine(DataDir, "dictation-hinglish-accurate");
+
     /// <summary>Present while the hotkeys are paused from the tray.</summary>
     public static string PausedFlag => Path.Combine(DataDir, "paused");
 
@@ -87,6 +90,12 @@ internal sealed class AppSettings
 
     /// <summary>Used when "Hindi + English" is switched on (Alt+Shift+H or the tray); types Hindi in Roman script.</summary>
     public string HinglishModelFile { get; set; } = "ggml-hinglish-swift-q8_0.bin";
+
+    /// <summary>
+    /// "Hindi + English (accurate)": a larger model (834 MB, about 10x slower, fewer mistakes). Typed text comes from it;
+    /// the live preview keeps using the fast model.
+    /// </summary>
+    public string HinglishAccurateModelFile { get; set; } = "ggml-hinglish-apex-q8_0.bin";
 
     public string DictationLanguageHotkey { get; set; } = "Alt+Shift+H";
 

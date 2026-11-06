@@ -17,6 +17,9 @@ internal static class ModelDownloader
 
         // Oriserve/Whisper-Hindi2Hinglish-Swift (Apache-2.0), converted with tools/ModelConvert and quantized to q8_0.
         ["ggml-hinglish-swift-q8_0.bin"] = ("https://github.com/shivam098/windows-voice-assistant/releases/download/models-hinglish-swift-1/ggml-hinglish-swift-q8_0.bin", "0cf6e7077971d9aa43963b04bf764a47600e873f7e0f3f0f9742323560171245"),
+
+        // Oriserve/Whisper-Hindi2Hinglish-Apex (Apache-2.0; fine-tuned from Whisper large-v3-turbo), same recipe.
+        ["ggml-hinglish-apex-q8_0.bin"] = ("https://github.com/shivam098/windows-voice-assistant/releases/download/models-hinglish-apex-1/ggml-hinglish-apex-q8_0.bin", "0b4324d2c1ad64f20883ee7fcd5d2bb0a8466287dc70d74bc47066200c28c719"),
     };
 
     public static bool CanDownload(string file) => Known.ContainsKey(file);

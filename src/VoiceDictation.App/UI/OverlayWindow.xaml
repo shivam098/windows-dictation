@@ -26,7 +26,7 @@
                     <TextBlock x:Name="ModeText" Foreground="White" FontSize="13" FontWeight="SemiBold" Text="Starting…" />
                     <Border x:Name="LanguageBadge" Visibility="Collapsed" Background="#334C8DF6" CornerRadius="6" Padding="6,0,6,1" Margin="8,0,0,0" VerticalAlignment="Center"
                             ToolTip="Dictation is in Hindi + English (Alt+Shift+H switches back to English)">
-                        <TextBlock Text="HI + EN" Foreground="#C6DAFC" FontSize="11" FontWeight="SemiBold" />
+                        <TextBlock x:Name="LanguageBadgeText" Text="HI + EN" Foreground="#C6DAFC" FontSize="11" FontWeight="SemiBold" />
                     </Border>
                 </StackPanel>
                 <TextBlock x:Name="LiveText" Foreground="#E8EAED" FontSize="13" TextWrapping="Wrap" MaxWidth="440" MaxHeight="56" Margin="0,3,0,0" Visibility="Collapsed" />

@@ -113,9 +113,12 @@ public partial class OverlayWindow : Window
         UpdateVisibility();
     }
 
-    /// <summary>Shows the "HI + EN" badge while dictation uses the Hindi + English model.</summary>
-    public void SetDictationLanguage(bool hinglish) =>
+    /// <summary>Shows the "HI + EN" badge while dictation uses Hindi + English (“HI + EN · accurate” for the larger model).</summary>
+    public void SetDictationLanguage(bool hinglish, bool accurate)
+    {
         LanguageBadge.Visibility = hinglish ? Visibility.Visible : Visibility.Collapsed;
+        LanguageBadgeText.Text = accurate ? "HI + EN · accurate" : "HI + EN";
+    }
 
     /// <summary>Shows the live transcript while recording; null hides it. Long text keeps its latest words.</summary>
     public void ShowPreview(string? text)

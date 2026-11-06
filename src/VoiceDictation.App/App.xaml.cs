@@ -84,7 +84,7 @@ public partial class App : System.Windows.Application
                 _tray?.SetRecording(false);
             }
         };
-        _overlay.SetDictationLanguage(_host.HinglishDictation);
+        _overlay.SetDictationLanguage(_host.HinglishDictation, _host.HinglishAccurate);
 
         _pasteHotkey = TryRegister(settings.PasteLastHotkey, _host.PasteLastTranscript, "paste last dictation");
         _languageHotkey = TryRegister(settings.DictationLanguageHotkey, _host.ToggleDictationLanguage, "switch dictation language");

@@ -129,7 +129,8 @@ DICTATE
   Hold Ctrl+Win, speak, release   -> words show live as you speak, then are typed where your cursor is
   Ctrl+Win+Space                  -> hands-free (press again to finish)
   Esc cancels  ·  Alt+Shift+Z pastes the last dictation again
-  Alt+Shift+H switches to Hindi + English (Hindi typed in Roman letters; downloads ~80 MB once) and back
+  Alt+Shift+H switches to Hindi + English (Hindi typed in Roman letters; downloads ~80 MB once) and back;
+  tray > Dictation language has a slower, more accurate Hindi + English option (830 MB download)
   Say "comma", "full stop", "question mark", "new line". "um"/"uh" are removed.
 
 PRIVACY
