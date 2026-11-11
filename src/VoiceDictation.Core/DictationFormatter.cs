@@ -66,7 +66,7 @@ public sealed partial class DictationFormatter
 
         if (_options.RemoveFillerWords)
         {
-            text = FillerRegex().Replace(text, " ");
+            text = RemoveFillers(text);
         }
 
         text = ApplyScratchThat(text);
@@ -94,6 +94,93 @@ public sealed partial class DictationFormatter
 
         return text;
     }
+
+    /// <summary>
+    /// Drops sounds and discourse fillers that carry no meaning, in English and Hinglish: “um/uh”; tags such as
+    /// “thik hai na?” and “…, thik hai?”; “basically”; “you know” / “I mean” between commas; a run of two or more fillers
+    /// opening a sentence or clause (“Haan to like …”, “Okay so …”, “Thik hai to like …”); “like” before “for example”;
+    /// a phrase said twice in a row (“for example, for example”); and sentences that are only fillers (“Ok.”) when
+    /// something else was said. Single words that may carry meaning (“to”, “so”, “haan”, “like”, “right”) are kept.
+    /// </summary>
+    internal static string RemoveFillers(string text)
+    {
+        text = FillerRegex().Replace(text, " ");
+        text = RemoveThikHaiNa(text);
+        text = CommaTagRegex().Replace(text, ". ");
+        text = BasicallyRegex().Replace(text, " ");
+        text = YouKnowRegex().Replace(text, string.Empty);
+        text = SpacesRegex().Replace(text, " ").Trim();
+        text = OpeningRunRegex().Replace(text, string.Empty);
+        text = LikeBeforeExampleRegex().Replace(text, string.Empty);
+        for (var i = 0; i < 3; i++)
+        {
+            var deduped = RepeatedPhraseRegex().Replace(text, m => IsDeliberateRepeat(m.Groups[1].Value) ? m.Value : m.Groups[1].Value);
+            if (deduped == text)
+            {
+                break;
+            }
+
+            text = deduped;
+        }
+
+        var sentences = SentenceSplitRegex().Split(text);
+        var kept = sentences.Where(s => !FillerSentenceRegex().IsMatch(s.Trim())).ToList();
+        return kept.Count > 0 && kept.Count < sentences.Length ? string.Join(' ', kept) : text;
+    }
+
+    // Words that end a clause; “… mein thik hai na?” is a tag, “Papa ki tabiyat thik hai na?” a real question.
+    private static readonly HashSet<string> ClauseEnders = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "hai", "hain", "ho", "hoga", "hogi", "honge", "tha", "thi", "the", "hoon", "hu", "hun", "chahiye", "chahie", "chaahie",
+        "chaahiye", "mein", "me", "par", "pe", "ko", "se", "karna", "karo", "karenge", "karunga", "karungi", "kar", "dena",
+        "lena", "do", "lo", "jao", "aana", "jaana", "milenge", "milte", "sakte", "sakta", "sakti",
+    };
+
+    private static readonly HashSet<string> ProtectingWords = new(StringComparer.OrdinalIgnoreCase) { "sab", "kya", "bilkul", "ekdum", "bhi", "kuch" };
+
+    private static readonly HashSet<string> SpokenSymbolWords = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "new", "line", "paragraph", "comma", "full", "stop", "question", "exclamation", "mark", "point", "colon", "semicolon", "period",
+    };
+
+    private static readonly HashSet<string> NumberWords = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "zero", "oh", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "double", "triple",
+    };
+
+    /// <summary>
+    /// “thik hai na” as a tag: inside a sentence (“… hota hai thik hai na to …”), as a sentence of its own, after a comma,
+    /// or after a word that ends a clause (“… mein thik hai na?”). Kept when it is the question itself (“Papa ki tabiyat
+    /// thik hai na?”, “Kya sab thik hai na?”) or when it is all that was said.
+    /// </summary>
+    private static string RemoveThikHaiNa(string text) => TagRegex().Replace(text, m =>
+    {
+        var before = text[..m.Index].TrimEnd();
+        var prevWord = PreviousWordRegex().Match(before).Value;
+        if (ProtectingWords.Contains(prevWord))
+        {
+            return m.Value;
+        }
+
+        var p = m.Groups["p"].Value;
+        var after = text[(m.Index + m.Length)..].TrimStart();
+        if (p is "" or "," && after.Length > 0 && char.IsLetterOrDigit(after[0]))
+        {
+            return ", "; // mid-sentence
+        }
+
+        var ownSentence = before.Length == 0 || before[^1] is '.' or '!' or '?' or '\n';
+        if (ownSentence)
+        {
+            return before.Length == 0 && after.Length == 0 ? m.Value : " ";
+        }
+
+        return before[^1] == ',' || ClauseEnders.Contains(prevWord) ? ". " : m.Value;
+    });
+
+    /// <summary>Repeats that are meant: spoken punctuation (“new line new line”) and digits (“1 2 1 2”, “one two one two”).</summary>
+    private static bool IsDeliberateRepeat(string phrase) =>
+        phrase.Split(' ', StringSplitOptions.RemoveEmptyEntries).All(w => SpokenSymbolWords.Contains(w) || NumberWords.Contains(w) || w.All(char.IsDigit));
 
     private bool TryExpandSnippet(string text, out string expansion)
     {
@@ -170,6 +257,43 @@ public sealed partial class DictationFormatter
 
     [GeneratedRegex(@"(?<![\w'-])(?:u+m+|u+h+|uhm|e+r+m+|e+r|a+h+|h+m+|m+h*m+)(?![\w'-])[,.]?", RegexOptions.IgnoreCase)]
     private static partial Regex FillerRegex();
+
+    // Fillers that may open a sentence or clause. “to/toh” only counts inside a run that doesn't end with it, so
+    // “Ok to proceed” and “To do that” stay.
+    private const string OpeningFiller = @"(?:haan|han|haa|so|ok|okay|ach+ha|acha|accha|achcha|th(?:i|ee)k\s+hai|matlab|chalo|alright|like)";
+
+    // “thik hai na” as a tag (not “sab thik hai na?” = “is everything fine?”).
+    [GeneratedRegex(@"\b(?:th(?:i|ee|ea)k|thick)\s+(?:hai|he|hain)\s+(?:na+|nah)(?![\p{L}'])\s*(?<p>[?.!,]?)", RegexOptions.IgnoreCase)]
+    private static partial Regex TagRegex();
+
+    [GeneratedRegex(@"[\p{L}]+$")]
+    private static partial Regex PreviousWordRegex();
+
+    [GeneratedRegex(@",\s*(?:th(?:i|ee|ea)k|thick)\s+(?:hai|he)\s*\?", RegexOptions.IgnoreCase)]
+    private static partial Regex CommaTagRegex();
+
+    [GeneratedRegex(@",?\s*\bbasically\b,?", RegexOptions.IgnoreCase)]
+    private static partial Regex BasicallyRegex();
+
+    [GeneratedRegex(@",\s*you know\s*(?=[,.!?]|$)|(?<=^|[.!?]\s+|,\s+)(?:you know|i mean),\s*", RegexOptions.IgnoreCase)]
+    private static partial Regex YouKnowRegex();
+
+    [GeneratedRegex(@"(?<=^|[.!?]\s+|,\s+|\n)(?:(?:" + OpeningFiller + @"|toh?)(?![\w'-]),?\s+)+" + OpeningFiller + @"(?![\w'-]),?\s+(?=[\p{L}\p{N}])(?!toh?\b|i\s+(?:said|told|mentioned|meant|was\s+saying)\b)", RegexOptions.IgnoreCase)]
+    private static partial Regex OpeningRunRegex();
+
+    [GeneratedRegex(@"(?<=^|[.!?]\s+|,\s+)like,?\s+(?=for example\b|jaise\b)", RegexOptions.IgnoreCase)]
+    private static partial Regex LikeBeforeExampleRegex();
+
+    // The same 2–4 words said twice in a row (“for example, for example”). Single words are left alone: Hindi doubles
+    // words on purpose (“dheere dheere”).
+    [GeneratedRegex(@"\b((?:[\p{L}\p{N}']+\s+){1,3}[\p{L}\p{N}']+),?\s+\1\b", RegexOptions.IgnoreCase)]
+    private static partial Regex RepeatedPhraseRegex();
+
+    [GeneratedRegex(@"(?<=[.!?])[ \t]+")]
+    private static partial Regex SentenceSplitRegex();
+
+    [GeneratedRegex(@"^(?:(?:ok|okay|th(?:i|ee)k\s+hai(?:\s+na)?|ach+ha|acha|accha|achcha|hmm+|alright|chalo)[\s,]*)+[.!?]*$", RegexOptions.IgnoreCase)]
+    private static partial Regex FillerSentenceRegex();
 
     [GeneratedRegex(@"[,.;]?\s*\bscratch that\b[,.!]?", RegexOptions.IgnoreCase)]
     private static partial Regex ScratchRegex();
