@@ -11,7 +11,7 @@ Free push-to-talk dictation that runs completely on your PC: no account, no clou
 
 - **Dictate into any app.** Chat apps, browsers, Word, VS Code, email, terminals: wherever your cursor is.
 - **See your words as you speak.** A small pill at the bottom of the screen shows the live transcript.
-- **Clean text.** "um" and "uh" are removed; say "comma", "full stop", "question mark", "new line" for punctuation;
+- **Clean text.** filler words are removed ("um", "uh", "basically", "you know", Hinglish "thik hai na?", "Haan to like …", repeated phrases, stray "Ok."); say "comma", "full stop", "question mark", "new line" for punctuation;
   "…scratch that…" drops the phrase before it; a personal dictionary fixes words it gets wrong.
 - **Hindi + English.** Press Alt+Shift+H to dictate Hinglish (Hindi is typed in Roman letters). Press again for English.
   For fewer mistakes, tray › *Dictation language* › *Hindi + English — accurate* uses a larger model (a few seconds per
