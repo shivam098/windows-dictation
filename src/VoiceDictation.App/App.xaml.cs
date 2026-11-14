@@ -16,16 +16,9 @@ public partial class App : System.Windows.Application
     private GlobalHotkey? _languageHotkey;
     private DictationKeyHook? _keyHook;
     private OverlayWindow? _overlay;
-    private DictationState _dictation;
+    private bool _recording;
     private int _recordingId;
     private bool _paused;
-
-    private enum DictationState
-    {
-        None,
-        Holding,
-        HandsFree,
-    }
 
     protected override void OnStartup(StartupEventArgs e)
     {
@@ -69,13 +62,14 @@ public partial class App : System.Windows.Application
         _host.Status += _overlay.ShowStatus;
         _host.Activity += _overlay.ShowActivity;
         _host.DictationPreview += _overlay.ShowPreview;
+        _host.InputLevel += _overlay.ShowInputLevel;
         _host.DictationLanguageChanged += _overlay.SetDictationLanguage;
         _host.CaptureStopped += id =>
         {
             // Recording couldn't start or stopped by itself: stop treating the keys (and Esc) as recording.
-            if (id == _recordingId && _dictation != DictationState.None)
+            if (id == _recordingId && _recording)
             {
-                _dictation = DictationState.None;
+                _recording = false;
                 if (_keyHook is not null)
                 {
                     _keyHook.IsRecording = false;
@@ -114,7 +108,7 @@ public partial class App : System.Windows.Application
 
     private void SetPaused(bool paused)
     {
-        if (paused && _dictation != DictationState.None)
+        if (paused && _recording)
         {
             EndDictation(cancel: true);
         }
@@ -148,7 +142,7 @@ public partial class App : System.Windows.Application
         }
     }
 
-    /// <summary>Hold Ctrl+Win to talk, Ctrl+Win+Space for hands-free, Esc to cancel.</summary>
+    /// <summary>Tap Ctrl+Win (or Ctrl+Win+Space) to start dictating, tap it again to finish; Esc cancels.</summary>
     private void InstallDictationKeys()
     {
         _keyHook = new DictationKeyHook(Dispatcher);
@@ -158,68 +152,41 @@ public partial class App : System.Windows.Application
             return;
         }
 
-        _keyHook.HoldStarted += () =>
+        _keyHook.StartPressed += () =>
         {
-            if (_dictation == DictationState.None && !_paused)
+            if (!_recording && !_paused)
             {
-                BeginDictation(DictationState.Holding, "Dictating… release Ctrl+Win to type");
+                BeginDictation();
             }
         };
-        _keyHook.HoldEnded += () =>
+        _keyHook.FinishPressed += () =>
         {
-            if (_dictation == DictationState.Holding)
+            if (_recording)
             {
                 EndDictation(cancel: false);
             }
         };
-        _keyHook.HoldAborted += () =>
-        {
-            if (_dictation == DictationState.Holding)
-            {
-                EndDictation(cancel: true);
-            }
-        };
-        _keyHook.HandsFreeToggled += () =>
-        {
-            switch (_dictation)
-            {
-                case DictationState.Holding:
-                    _dictation = DictationState.HandsFree;
-                    _host!.UpdateCaptureLabel("Dictating hands-free… Ctrl+Win+Space to finish");
-                    break;
-                case DictationState.HandsFree:
-                    EndDictation(cancel: false);
-                    break;
-                default:
-                    if (!_paused)
-                    {
-                        BeginDictation(DictationState.HandsFree, "Dictating hands-free… Ctrl+Win+Space to finish");
-                    }
-
-                    break;
-            }
-        };
         _keyHook.CancelPressed += () =>
         {
-            if (_dictation != DictationState.None)
+            if (_recording)
             {
                 EndDictation(cancel: true);
             }
         };
     }
 
-    private void BeginDictation(DictationState state, string label)
+    private void BeginDictation()
     {
-        _dictation = state;
+        _recording = true;
         _recordingId++;
         _keyHook!.IsRecording = true;
         _tray?.SetRecording(true);
-        _host!.BeginDictationCapture(label, _recordingId);
+        _host!.BeginDictationCapture(_recordingId);
     }
 
     private void EndDictation(bool cancel)
     {
-        _dictation = DictationState.None;
+        _recording = false;
         if (_keyHook is not null)
         {
             _keyHook.IsRecording = false;

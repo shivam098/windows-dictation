@@ -5,9 +5,10 @@
 1. Start `VoiceDictation.exe`. The tray (bottom-right, maybe under the **^** arrow) shows a green microphone icon.
    On first run the pill at the bottom of the screen shows the model download.
 2. Click into any text box, for example a chat message box.
-3. **Hold Ctrl+Win**, say "Hello comma this is my first dictation full stop", and **release**.
-   You hear a short tone when recording starts and stops, the pill shows your words as you speak, and the text appears
-   where your cursor is.
+3. **Tap Ctrl+Win** (press and let go), say "Hello comma this is my first dictation full stop", then **tap Ctrl+Win
+   again**. You hear a short tone when recording starts and stops. While it listens, the pill shows a moving voice-level
+   meter, your words as you speak and "Ctrl+Win to finish · Esc to cancel"; after the second tap it shows
+   "Transcribing…" and the text appears where your cursor is.
 
 The pill hides itself when idle. Tray › **Always show status pill** (or left-click the tray icon) keeps it on screen.
 
@@ -17,9 +18,11 @@ The pill hides itself when idle. Tray › **Always show status pill** (or left-c
 - Punctuation: "comma", "full stop" or "period", "question mark", "exclamation mark", "colon", "new line",
   "new paragraph".
 - Changed your mind mid-sentence? Say "scratch that" and the phrase before it is dropped.
-- For long dictation use **Ctrl+Win+Space** (hands-free) so you don't have to hold the keys. Press it again to finish.
-- Pressing another key while holding Ctrl+Win (for example Ctrl+Win+D) is treated as a Windows shortcut: the recording
-  is discarded.
+- You never have to hold the keys: dictate as long as you like and tap Ctrl+Win when you're done. **Ctrl+Win+Space**
+  works the same way. **Esc** cancels. A recording stops and is typed by itself after 5 minutes
+  (`MaxDictationSeconds` in the settings file; 0 turns the limit off).
+- Pressing another key together with the Ctrl+Win that starts a recording (for example Ctrl+Win+D) is treated as a
+  Windows shortcut: that recording is discarded. Using a Ctrl+Win shortcut while recording keeps the recording going.
 
 ## Hindi + English
 
@@ -28,7 +31,7 @@ shows **HI + EN** while it's on. Hindi words are typed in Roman letters ("kal me
 Press Alt+Shift+H again for English, which is more accurate for English-only speech.
 
 If Hindi words come out wrong too often, choose tray › Dictation language › **Hindi + English — accurate**. It uses a much
-larger model (830 MB download, once): fewer mistakes, but a few seconds per phrase after you release the keys (about
+larger model (830 MB download, once): fewer mistakes, but a few seconds per phrase after you tap Ctrl+Win to finish (about
 2.5 s on a Snapdragon X Elite, more on older PCs). Words still appear live while you speak. The pill shows
 **HI + EN · accurate**, and Alt+Shift+H then switches between English and this mode.
 

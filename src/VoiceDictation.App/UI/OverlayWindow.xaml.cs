@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Threading;
 using VoiceDictation.App.Platform;
 using VoiceDictation.Core;
@@ -13,8 +14,13 @@ namespace VoiceDictation.App.UI;
 /// </summary>
 public partial class OverlayWindow : Window
 {
+    private static readonly double[] BarWeights = [0.55, 0.8, 1.0, 0.8, 0.55];
     private readonly DispatcherTimer _fade = new() { Interval = TimeSpan.FromSeconds(5) };
+    private readonly DispatcherTimer _dots = new() { Interval = TimeSpan.FromMilliseconds(350) };
+    private readonly Random _jitter = new();
     private string? _activity;
+    private double _level;
+    private int _dotCount;
     private bool _paused;
     private bool _pinned;
 
@@ -37,6 +43,12 @@ public partial class OverlayWindow : Window
         SizeChanged += (_, _) => Reposition();
         MinimizeButton.Click += (_, _) => Pinned = false;
         MinimizeButton.Visibility = Visibility.Collapsed;
+        HintText.Text = DictationLabels.ListeningHint;
+        _dots.Tick += (_, _) =>
+        {
+            _dotCount = (_dotCount + 1) % 4;
+            ModeDots.Text = new string('.', _dotCount);
+        };
         ShowActivity(null);
     }
 
@@ -61,22 +73,59 @@ public partial class OverlayWindow : Window
         }
     }
 
-    /// <summary>Shows what is happening (“Dictating…”, “Transcribing…”); null returns to the resting label.</summary>
+    /// <summary>
+    /// Shows what is happening; null returns to the resting label. <see cref="DictationLabels.Listening"/> shows the
+    /// level meter and how to finish, <see cref="DictationLabels.Transcribing"/> animates until the text is typed.
+    /// </summary>
     public void ShowActivity(string? activity)
     {
+        var wasTranscribing = _activity == DictationLabels.Transcribing;
         _activity = activity;
+        var listening = activity == DictationLabels.Listening;
+        var transcribing = activity == DictationLabels.Transcribing;
+
+        LevelMeter.Visibility = listening ? Visibility.Visible : Visibility.Collapsed;
+        Dot.Visibility = listening ? Visibility.Collapsed : Visibility.Visible;
+        HintText.Visibility = listening ? Visibility.Visible : Visibility.Collapsed;
+        if (listening)
+        {
+            _level = 0;
+            SetBars(0);
+        }
+
         if (activity is null)
         {
-            ModeText.Text = _paused ? "Paused · dictation keys are off" : "Ready · hold Ctrl+Win to dictate";
+            ModeText.Text = _paused ? "Paused · dictation keys are off" : "Ready · tap Ctrl+Win to dictate";
             Dot.Fill = Brush(_paused ? "#9AA0A6" : "#81C995");
         }
         else
         {
-            ModeText.Text = activity;
-            Dot.Fill = IsDictating(activity) ? Brush("#EA4335") : Brush("#FBBC04");
+            ModeText.Text = transcribing ? activity.TrimEnd('…') : activity;
+            Dot.Fill = listening ? Brush("#EA4335") : Brush("#FBBC04");
+        }
+
+        SetTranscribing(transcribing);
+        if (wasTranscribing && !transcribing)
+        {
+            // The words heard while recording stayed on screen during transcription; the typed text replaces them.
+            LiveText.Text = string.Empty;
+            LiveText.Visibility = Visibility.Collapsed;
         }
 
         UpdateVisibility();
+    }
+
+    /// <summary>Moves the level meter while recording (<paramref name="level"/> from 0 to 1).</summary>
+    public void ShowInputLevel(float level)
+    {
+        if (_activity != DictationLabels.Listening)
+        {
+            return;
+        }
+
+        // Rise at once, fall back gently, like a VU meter.
+        _level = level > _level ? level : (_level * 0.6) + (level * 0.4);
+        SetBars(_level);
     }
 
     public void SetPaused(bool paused)
@@ -126,6 +175,12 @@ public partial class OverlayWindow : Window
         const int MaxChars = 150;
         if (string.IsNullOrEmpty(text))
         {
+            if (_activity == DictationLabels.Transcribing)
+            {
+                // Keep the last preview on screen until the transcription is typed.
+                return;
+            }
+
             LiveText.Text = string.Empty;
             LiveText.Visibility = Visibility.Collapsed;
             UpdateVisibility();
@@ -140,6 +195,7 @@ public partial class OverlayWindow : Window
         }
 
         LiveText.Text = text;
+        LiveText.Opacity = _activity == DictationLabels.Transcribing ? 0.6 : 1;
         LiveText.Visibility = Visibility.Visible;
         MessageText.Visibility = Visibility.Collapsed;
         HeardText.Visibility = Visibility.Collapsed;
@@ -172,7 +228,37 @@ public partial class OverlayWindow : Window
         Top = area.Bottom - ActualHeight - 16;
     }
 
-    private static bool IsDictating(string? activity) => activity?.StartsWith("Dictating", StringComparison.Ordinal) == true;
+    private void SetBars(double level)
+    {
+        var bars = LevelMeter.Children;
+        for (var i = 0; i < bars.Count && i < BarWeights.Length; i++)
+        {
+            var wobble = level > 0.05 ? 0.8 + (_jitter.NextDouble() * 0.4) : 1;
+            ((FrameworkElement)bars[i]).Height = 4 + (14 * Math.Clamp(level * BarWeights[i] * wobble, 0, 1));
+        }
+    }
+
+    private void SetTranscribing(bool transcribing)
+    {
+        ModeDots.Visibility = transcribing ? Visibility.Visible : Visibility.Collapsed;
+        if (transcribing)
+        {
+            LiveText.Opacity = 0.6;
+            if (!_dots.IsEnabled)
+            {
+                _dotCount = 0;
+                ModeDots.Text = string.Empty;
+                _dots.Start();
+                Dot.BeginAnimation(OpacityProperty, new DoubleAnimation(1, 0.3, TimeSpan.FromMilliseconds(500)) { AutoReverse = true, RepeatBehavior = RepeatBehavior.Forever });
+            }
+        }
+        else if (_dots.IsEnabled)
+        {
+            _dots.Stop();
+            Dot.BeginAnimation(OpacityProperty, null);
+            LiveText.Opacity = 1;
+        }
+    }
 
     private static SolidColorBrush Brush(string hex) => new((Color)ColorConverter.ConvertFromString(hex));
 }

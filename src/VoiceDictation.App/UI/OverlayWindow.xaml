@@ -20,16 +20,28 @@
             MaxWidth="560">
         <StackPanel Orientation="Horizontal">
             <Image Source="/Assets/logo-64.png" Width="22" Height="22" VerticalAlignment="Center" Margin="0,0,8,0" RenderOptions.BitmapScalingMode="HighQuality" />
-            <Ellipse x:Name="Dot" Width="10" Height="10" Fill="#9AA0A6" VerticalAlignment="Center" Margin="0,0,10,0" />
+            <Grid VerticalAlignment="Center" Margin="0,0,10,0">
+                <Ellipse x:Name="Dot" Width="10" Height="10" Fill="#9AA0A6" VerticalAlignment="Center" HorizontalAlignment="Center" />
+                <!-- Microphone level while recording: shows the voice is being captured. -->
+                <StackPanel x:Name="LevelMeter" Orientation="Horizontal" Height="18" VerticalAlignment="Center" Visibility="Collapsed">
+                    <Rectangle Width="3" Height="4" RadiusX="1.5" RadiusY="1.5" Fill="#EA4335" VerticalAlignment="Center" />
+                    <Rectangle Width="3" Height="4" RadiusX="1.5" RadiusY="1.5" Fill="#EA4335" VerticalAlignment="Center" Margin="2,0,0,0" />
+                    <Rectangle Width="3" Height="4" RadiusX="1.5" RadiusY="1.5" Fill="#EA4335" VerticalAlignment="Center" Margin="2,0,0,0" />
+                    <Rectangle Width="3" Height="4" RadiusX="1.5" RadiusY="1.5" Fill="#EA4335" VerticalAlignment="Center" Margin="2,0,0,0" />
+                    <Rectangle Width="3" Height="4" RadiusX="1.5" RadiusY="1.5" Fill="#EA4335" VerticalAlignment="Center" Margin="2,0,0,0" />
+                </StackPanel>
+            </Grid>
             <StackPanel VerticalAlignment="Center">
                 <StackPanel Orientation="Horizontal">
                     <TextBlock x:Name="ModeText" Foreground="White" FontSize="13" FontWeight="SemiBold" Text="Starting…" />
+                    <TextBlock x:Name="ModeDots" Foreground="White" FontSize="13" FontWeight="SemiBold" Width="14" Visibility="Collapsed" />
                     <Border x:Name="LanguageBadge" Visibility="Collapsed" Background="#334C8DF6" CornerRadius="6" Padding="6,0,6,1" Margin="8,0,0,0" VerticalAlignment="Center"
                             ToolTip="Dictation is in Hindi + English (Alt+Shift+H switches back to English)">
                         <TextBlock x:Name="LanguageBadgeText" Text="HI + EN" Foreground="#C6DAFC" FontSize="11" FontWeight="SemiBold" />
                     </Border>
                 </StackPanel>
                 <TextBlock x:Name="LiveText" Foreground="#E8EAED" FontSize="13" TextWrapping="Wrap" MaxWidth="440" MaxHeight="56" Margin="0,3,0,0" Visibility="Collapsed" />
+                <TextBlock x:Name="HintText" Foreground="#9AA0A6" FontSize="11" Margin="0,2,0,0" Visibility="Collapsed" />
                 <TextBlock x:Name="MessageText" Foreground="#E8EAED" FontSize="12" TextTrimming="CharacterEllipsis" MaxWidth="500" Visibility="Collapsed" />
                 <TextBlock x:Name="HeardText" Foreground="#9AA0A6" FontSize="11" FontStyle="Italic" TextTrimming="CharacterEllipsis" MaxWidth="500" Visibility="Collapsed" />
             </StackPanel>

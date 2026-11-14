@@ -106,9 +106,9 @@ internal sealed class TrayIcon : IDisposable
 
     private void Refresh()
     {
-        var (icon, label) = _recording ? (_recordingIcon.Icon, "Recording")
+        var (icon, label) = _recording ? (_recordingIcon.Icon, "Recording — tap Ctrl+Win to finish")
             : _paused ? (_pausedIcon.Icon, "Paused (dictation keys off)")
-            : (_readyIcon.Icon, "Ready — hold Ctrl+Win to dictate");
+            : (_readyIcon.Icon, "Ready — tap Ctrl+Win to dictate");
         _icon.Icon = icon;
         _icon.Text = $"Voice Dictation — {label}";
         _status.Text = label;
@@ -142,9 +142,10 @@ internal sealed class TrayIcon : IDisposable
     private static void ShowHelp(AppSettings settings) => System.Windows.MessageBox.Show(
         $"""
         DICTATE INTO ANY APP
-          Hold Ctrl+Win, speak, release → the text appears where your cursor is.
-          Ctrl+Win+Space → hands-free; press it again to finish.
-          Esc while recording → cancel.
+          Tap Ctrl+Win (press and let go) → recording starts; no need to hold the keys.
+          Speak: the pill shows your voice level and the words as you say them.
+          Tap Ctrl+Win again → “Transcribing…”, then the text appears where your cursor is.
+          Ctrl+Win+Space works the same way. Esc while recording → cancel.
           {settings.PasteLastHotkey} → paste the last dictation again.
           {settings.DictationLanguageHotkey} → switch between English and Hindi + English
           (Hindi is typed in Roman letters).
@@ -154,13 +155,19 @@ internal sealed class TrayIcon : IDisposable
           “um” and “uh” are removed. “…scratch that…” drops the phrase before it.
 
         PRIVATE BY DESIGN
-          The microphone is on only while you hold the keys (or hands-free is on).
+          The microphone is on only from one tap of Ctrl+Win to the next{LimitNote(settings)}.
           Speech is turned into text on this PC; nothing is sent anywhere.
           Password fields and administrator windows are never typed into.
 
         Personal dictionary, snippets and new-line keys per app: tray › Open settings file.
         """,
         "Voice Dictation — how to use");
+
+    private static string LimitNote(AppSettings settings) => settings.MaxDictationSeconds <= 0
+        ? string.Empty
+        : settings.MaxDictationSeconds % 60 == 0
+            ? $"\n  (a recording stops by itself after {settings.MaxDictationSeconds / 60} min)"
+            : $"\n  (a recording stops by itself after {settings.MaxDictationSeconds} s)";
 
     private static void OpenSettings()
     {

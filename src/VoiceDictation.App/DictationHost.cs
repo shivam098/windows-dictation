@@ -7,8 +7,9 @@ using VoiceDictation.Speech;
 namespace VoiceDictation.App;
 
 /// <summary>
-/// Push-to-talk dictation: the microphone opens only while the keys are held (or hands-free is on), the recording is
-/// shown live, then transcribed with Whisper and inserted at the cursor. All work runs on one serial queue.
+/// Tap-to-dictate: the microphone opens when Ctrl+Win is tapped and closes when it is tapped again. The recording is
+/// shown live (level meter and preview), then transcribed with Whisper and inserted at the cursor. All work runs on
+/// one serial queue.
 /// </summary>
 internal sealed class DictationHost : IDisposable
 {
@@ -17,6 +18,7 @@ internal sealed class DictationHost : IDisposable
 
     private const int SampleRate = WhisperRecognizer.SampleRate;
     private const int PreviewIntervalMs = 600;
+    private const int LevelIntervalMs = 50;
 
     private readonly AppSettings _settings;
     private readonly Dispatcher _ui;
@@ -43,7 +45,9 @@ internal sealed class DictationHost : IDisposable
     private Task? _previewTask;
     private Task? _queueTask;
     private volatile bool _capturing;
-    private int _captureId;
+    private volatile int _captureId;
+    private long _lastLevelTicks;
+    private bool _limitReached;
 
     public DictationHost(AppSettings settings, Dispatcher ui, IDesktop? desktop = null, bool persistState = true)
     {
@@ -90,12 +94,19 @@ internal sealed class DictationHost : IDisposable
 
     /// <summary>
     /// Raised on the UI thread with the id passed to <see cref="BeginDictationCapture"/> when that recording couldn't
-    /// start or stopped on its own (model still loading, microphone error), so the keys stop acting as if recording.
+    /// start or stopped on its own (model still loading, microphone error, time limit), so the keys stop acting as if
+    /// recording.
     /// </summary>
     public event Action<int>? CaptureStopped;
 
-    /// <summary>Raised on the UI thread with a transient label (“Dictating…”, “Transcribing…”); null clears it.</summary>
+    /// <summary>
+    /// Raised on the UI thread with a transient label (<see cref="DictationLabels.Listening"/>,
+    /// <see cref="DictationLabels.Transcribing"/>); null clears it.
+    /// </summary>
     public event Action<string?>? Activity;
+
+    /// <summary>Raised on the UI thread about 20 times a second while recording with the microphone level (0 to 1).</summary>
+    public event Action<float>? InputLevel;
 
     /// <summary>Raised on the UI thread with the live transcript while recording (null clears it).</summary>
     public event Action<string?>? DictationPreview;
@@ -140,19 +151,8 @@ internal sealed class DictationHost : IDisposable
         return done.Task;
     }
 
-    /// <summary>Changes the label of the recording in progress (hold → hands-free); never starts recording.</summary>
-    public void UpdateCaptureLabel(string label) => Enqueue(() =>
-    {
-        if (_capturing)
-        {
-            PostActivity(label);
-        }
-
-        return Task.CompletedTask;
-    });
-
     /// <summary>Opens the microphone and starts recording. <paramref name="id"/> identifies this recording in <see cref="CaptureStopped"/>.</summary>
-    public void BeginDictationCapture(string label, int id) => Enqueue(() =>
+    public void BeginDictationCapture(int id) => Enqueue(() =>
     {
         if (_capturing)
         {
@@ -187,6 +187,8 @@ internal sealed class DictationHost : IDisposable
             return Task.CompletedTask;
         }
 
+        _limitReached = false;
+        _lastLevelTicks = 0;
         _capturing = true;
         _captureRecognizer = _recognizer;
         WhisperRecognizer? previewRecognizer = _recognizer;
@@ -218,7 +220,7 @@ internal sealed class DictationHost : IDisposable
         }
 
         _sounds.Play(SoundFeedback.Cue.StartTyping);
-        PostActivity(label);
+        PostActivity(DictationLabels.Listening);
         if (_settings.LivePreview && previewRecognizer is not null)
         {
             _previewCts = new CancellationTokenSource();
@@ -231,49 +233,54 @@ internal sealed class DictationHost : IDisposable
     });
 
     /// <summary>Stops recording and closes the microphone; transcribes and types unless cancelled.</summary>
-    public void EndDictationCapture(bool cancel) => Enqueue(async () =>
+    public void EndDictationCapture(bool cancel) => Enqueue(() => EndCaptureAsync(cancel));
+
+    /// <param name="cancel">Throw the recording away instead of typing it.</param>
+    /// <param name="onlyId">Stop only if this recording is still the one in progress (time limit).</param>
+    private async Task EndCaptureAsync(bool cancel, int? onlyId = null)
     {
-        if (!_capturing)
+        if (!_capturing || (onlyId is { } id && id != _captureId))
         {
             return;
         }
 
         _capturing = false;
-        await StopPreviewAsync().ConfigureAwait(false);
-        _microphone.Stop();
-        float[] audio;
-        lock (_captureGate)
-        {
-            audio = [.. _capture];
-            _capture.Clear();
-        }
 
-        PostActivity(null);
-        _sounds.Play(cancel ? SoundFeedback.Cue.Standby : SoundFeedback.Cue.StopTyping);
-        if (cancel)
-        {
-            Report(StatusKind.Info, "Dictation cancelled.");
-            return;
-        }
-
-        var recognizer = _captureRecognizer ?? _recognizer;
-        if (audio.Length < SampleRate / 4 || recognizer is null)
-        {
-            return;
-        }
-
-        IReadOnlyList<float[]> chunks = _detector is null
-            ? SpeechSegments.Chunk(audio, [(TimeSpan.Zero, TimeSpan.FromSeconds((double)audio.Length / SampleRate))], SampleRate, 14000, 0)
-            : SpeechSegments.Chunk(audio, _detector.Detect(audio), SampleRate, 14000, 200);
-        if (chunks.Count == 0)
-        {
-            Report(StatusKind.Info, "I didn't hear any speech.");
-            return;
-        }
-
-        PostActivity("Transcribing…");
+        // Show “Transcribing…” straight away: stopping the live preview may wait for a pass that is still running.
+        PostActivity(cancel ? null : DictationLabels.Transcribing);
         try
         {
+            await StopPreviewAsync().ConfigureAwait(false);
+            _microphone.Stop();
+            float[] audio;
+            lock (_captureGate)
+            {
+                audio = [.. _capture];
+                _capture.Clear();
+            }
+
+            _sounds.Play(cancel ? SoundFeedback.Cue.Standby : SoundFeedback.Cue.StopTyping);
+            if (cancel)
+            {
+                Report(StatusKind.Info, "Dictation cancelled.");
+                return;
+            }
+
+            var recognizer = _captureRecognizer ?? _recognizer;
+            if (audio.Length < SampleRate / 4 || recognizer is null)
+            {
+                return;
+            }
+
+            IReadOnlyList<float[]> chunks = _detector is null
+                ? SpeechSegments.Chunk(audio, [(TimeSpan.Zero, TimeSpan.FromSeconds((double)audio.Length / SampleRate))], SampleRate, 14000, 0)
+                : SpeechSegments.Chunk(audio, _detector.Detect(audio), SampleRate, 14000, 200);
+            if (chunks.Count == 0)
+            {
+                Report(StatusKind.Info, "I didn't hear any speech.");
+                return;
+            }
+
             var parts = new List<string>();
             foreach (var chunk in chunks)
             {
@@ -295,8 +302,23 @@ internal sealed class DictationHost : IDisposable
             // The language may have changed during this recording.
             ReleaseAccurateIfUnused();
         }
-    });
+    }
 
+    /// <summary>The recording reached <see cref="AppSettings.MaxDictationSeconds"/>: finish it as if Ctrl+Win was tapped.</summary>
+    private async Task FinishAtLimitAsync(int id)
+    {
+        if (!_capturing || id != _captureId)
+        {
+            return;
+        }
+
+        var seconds = _settings.MaxDictationSeconds;
+        Log.Info($"dictation reached the {seconds}s limit");
+        ReportCaptureStopped(id);
+        await EndCaptureAsync(cancel: false, onlyId: id).ConfigureAwait(false);
+        var limit = seconds % 60 == 0 ? $"{seconds / 60} minute{(seconds == 60 ? string.Empty : "s")}" : $"{seconds} seconds";
+        Report(StatusKind.Info, $"Dictation stops by itself after {limit}. Tap Ctrl+Win to keep going.");
+    }
     public void PasteLastTranscript() => Enqueue(() =>
     {
         _inserter.RepeatLast();
@@ -420,12 +442,32 @@ internal sealed class DictationHost : IDisposable
 
     private void OnSamples(float[] samples)
     {
-        if (_capturing)
+        if (!_capturing)
         {
-            lock (_captureGate)
-            {
-                _capture.AddRange(samples);
-            }
+            return;
+        }
+
+        int recorded;
+        lock (_captureGate)
+        {
+            _capture.AddRange(samples);
+            recorded = _capture.Count;
+        }
+
+        var now = Environment.TickCount64;
+        if (now - _lastLevelTicks >= LevelIntervalMs)
+        {
+            _lastLevelTicks = now;
+            var level = AudioLevel.Of(samples);
+            Post(() => InputLevel?.Invoke(level));
+        }
+
+        var max = _settings.MaxDictationSeconds;
+        if (max > 0 && !_limitReached && recorded >= (long)max * SampleRate)
+        {
+            _limitReached = true;
+            var id = _captureId;
+            Enqueue(() => FinishAtLimitAsync(id));
         }
     }
 
@@ -450,7 +492,7 @@ internal sealed class DictationHost : IDisposable
             : $"Downloading the {what}, one time)…");
         try
         {
-            // Progress shows in the pill only on first run; later downloads must not replace a "Dictating…" label,
+            // Progress shows in the pill only on first run; later downloads must not replace a "Listening…" label,
             // so they report every 10% as a status message instead.
             var lastTenth = 0;
             await ModelDownloader.DownloadAsync(file, AppPaths.ModelsDir, percent =>
@@ -539,7 +581,7 @@ internal sealed class DictationHost : IDisposable
             EnsureHinglishLoading();
         }
 
-        Report(StatusKind.Info, "Ready. Hold Ctrl+Win and speak.");
+        Report(StatusKind.Info, "Ready. Tap Ctrl+Win, speak, then tap it again to type.");
     }
 
     /// <summary>

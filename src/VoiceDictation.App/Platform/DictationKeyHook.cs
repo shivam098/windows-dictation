@@ -1,12 +1,12 @@
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using VoiceDictation.Core;
 
 namespace VoiceDictation.App.Platform;
 
 /// <summary>
-/// Low-level keyboard hook for Wispr-style dictation keys:
-/// hold Ctrl+Win = push-to-talk; Ctrl+Win+Space = toggle hands-free; Esc = cancel while recording.
-/// Any other key pressed with Ctrl+Win (e.g. Ctrl+Win+D) is a Windows shortcut, so recording is aborted.
+/// Low-level keyboard hook for tap-to-dictate keys (see <see cref="TapToDictateKeys"/>): tap Ctrl+Win to start
+/// recording, tap it again to finish; Ctrl+Win+Space does the same; Esc cancels while recording.
 /// Events are raised on the UI thread via the dispatcher; the hook callback itself stays minimal.
 /// </summary>
 internal sealed class DictationKeyHook : IDisposable
@@ -19,10 +19,8 @@ internal sealed class DictationKeyHook : IDisposable
     private readonly System.Windows.Threading.Dispatcher _dispatcher;
     private readonly HookProc _proc;
     private readonly nint _hook;
-    private bool _combo;
-    private bool _comboUsedOtherKey;
-    private bool _comboUsedSpace;
-    private bool _swallowSpaceUp;
+    private readonly TapToDictateKeys _keys = new();
+    private bool _enabled = true;
 
     public DictationKeyHook(System.Windows.Threading.Dispatcher dispatcher)
     {
@@ -34,28 +32,37 @@ internal sealed class DictationKeyHook : IDisposable
 
     private delegate nint HookProc(int code, nint wParam, nint lParam);
 
-    /// <summary>Ctrl+Win went down (start recording).</summary>
-    public event Action? HoldStarted;
+    /// <summary>Ctrl+Win (or Ctrl+Win+Space) tapped while not recording: start recording.</summary>
+    public event Action? StartPressed;
 
-    /// <summary>Ctrl+Win released with nothing else pressed (stop and type).</summary>
-    public event Action? HoldEnded;
+    /// <summary>Ctrl+Win (or Ctrl+Win+Space) tapped again while recording: stop, transcribe and type.</summary>
+    public event Action? FinishPressed;
 
-    /// <summary>Another key was pressed with Ctrl+Win: it was a Windows shortcut, discard the recording.</summary>
-    public event Action? HoldAborted;
-
-    /// <summary>Ctrl+Win+Space.</summary>
-    public event Action? HandsFreeToggled;
-
-    /// <summary>Esc while <see cref="IsRecording"/>.</summary>
+    /// <summary>Esc while recording, or the Ctrl+Win that started it was part of a Windows shortcut: discard the recording.</summary>
     public event Action? CancelPressed;
 
     public bool IsInstalled => _hook != 0;
 
-    /// <summary>Set by the host so Esc is only captured while dictation is recording.</summary>
-    public volatile bool IsRecording;
+    /// <summary>
+    /// Whether the keys treat dictation as recording (the next tap finishes it, Esc cancels it). The keys update it
+    /// themselves; the host clears it when a recording stops on its own. Use only on the UI thread.
+    /// </summary>
+    public bool IsRecording
+    {
+        get => _keys.IsRecording;
+        set => _keys.IsRecording = value;
+    }
 
-    /// <summary>False while the dictation keys are paused: every key passes through untouched.</summary>
-    public volatile bool Enabled = true;
+    /// <summary>False while the dictation keys are paused: every key passes through untouched. Use only on the UI thread.</summary>
+    public bool Enabled
+    {
+        get => _enabled;
+        set
+        {
+            _enabled = value;
+            _keys.Reset();
+        }
+    }
 
     public void Dispose()
     {
@@ -65,24 +72,11 @@ internal sealed class DictationKeyHook : IDisposable
         }
     }
 
+    // Runs on the thread that installed the hook (the UI thread), so it shares _keys with the host safely.
     private nint Callback(int code, nint wParam, nint lParam)
     {
-        if (code < 0)
+        if (code < 0 || !_enabled)
         {
-            return CallNextHookEx(_hook, code, wParam, lParam);
-        }
-
-        if (!Enabled)
-        {
-            _combo = false;
-            _swallowSpaceUp = false;
-            return CallNextHookEx(_hook, code, wParam, lParam);
-        }
-
-        if (!Enabled)
-        {
-            _combo = false;
-            _swallowSpaceUp = false;
             return CallNextHookEx(_hook, code, wParam, lParam);
         }
 
@@ -94,72 +88,46 @@ internal sealed class DictationKeyHook : IDisposable
 
         var msg = (int)wParam;
         var down = msg is WM_KEYDOWN or WM_SYSKEYDOWN;
-        var up = msg is WM_KEYUP or WM_SYSKEYUP;
-        var vk = info.vkCode;
-        var isCtrl = vk is VK_LCONTROL or VK_RCONTROL or VK_CONTROL;
-        var isWin = vk is VK_LWIN or VK_RWIN;
-
-        if (isCtrl || isWin)
+        if (!down && msg is not (WM_KEYUP or WM_SYSKEYUP))
         {
-            // Read the other modifier's real state: a hook sees no input on the secure desktop (Win+L,
-            // Ctrl+Alt+Del, UAC), so remembered key states can go stale.
-            var ctrl = isCtrl ? down : IsDown(VK_CONTROL);
-            var win = isWin ? down : IsDown(VK_LWIN) || IsDown(VK_RWIN);
-
-            if (down && ctrl && win && !_combo)
-            {
-                _combo = true;
-                _comboUsedOtherKey = false;
-                _comboUsedSpace = false;
-                Raise(HoldStarted);
-            }
-            else if (up && _combo)
-            {
-                _combo = false;
-                if (isWin)
-                {
-                    // Releasing Win after Ctrl+Win would open the Start menu; an unassigned key in between prevents it.
-                    KeyboardInput.TapUnassignedKey();
-                }
-
-                if (!_comboUsedOtherKey && !_comboUsedSpace)
-                {
-                    Raise(HoldEnded);
-                }
-            }
-
             return CallNextHookEx(_hook, code, wParam, lParam);
         }
 
-        if (down && _combo)
+        var key = info.vkCode switch
         {
-            if (vk == VK_SPACE)
-            {
-                _comboUsedSpace = true;
-                _swallowSpaceUp = true;
-                Raise(HandsFreeToggled);
-                return 1;
-            }
+            VK_LCONTROL or VK_RCONTROL or VK_CONTROL => DictationKey.Ctrl,
+            VK_LWIN or VK_RWIN => DictationKey.Win,
+            VK_SPACE => DictationKey.Space,
+            VK_ESCAPE => DictationKey.Escape,
+            _ => DictationKey.Other,
+        };
 
-            if (!_comboUsedOtherKey && !_comboUsedSpace)
-            {
-                _comboUsedOtherKey = true;
-                Raise(HoldAborted);
-            }
-        }
-        else if (down && vk == VK_ESCAPE && IsRecording)
+        var ctrl = false;
+        var win = false;
+        if (key is DictationKey.Ctrl or DictationKey.Win)
         {
-            Raise(CancelPressed);
-            return 1;
-        }
-        else if (up && vk == VK_SPACE && _swallowSpaceUp)
-        {
-            // Only the key-up matching the swallowed Ctrl+Win+Space key-down.
-            _swallowSpaceUp = false;
-            return 1;
+            // Read the other modifier's real state: a hook sees no input on the secure desktop (Win+L,
+            // Ctrl+Alt+Del, UAC), so remembered key states can go stale.
+            ctrl = key == DictationKey.Ctrl ? down : IsDown(VK_CONTROL);
+            win = key == DictationKey.Win ? down : IsDown(VK_LWIN) || IsDown(VK_RWIN);
         }
 
-        return CallNextHookEx(_hook, code, wParam, lParam);
+        var result = _keys.Process(key, down, ctrl, win);
+        if (result.SuppressStartMenu)
+        {
+            // Releasing Win after Ctrl+Win would open the Start menu; an unassigned key in between prevents it.
+            KeyboardInput.TapUnassignedKey();
+        }
+
+        Raise(result.Command switch
+        {
+            DictationKeyCommand.Start => StartPressed,
+            DictationKeyCommand.Finish => FinishPressed,
+            DictationKeyCommand.Cancel => CancelPressed,
+            _ => null,
+        });
+
+        return result.Swallow ? 1 : CallNextHookEx(_hook, code, wParam, lParam);
     }
 
     private static bool IsDown(uint vk) => (GetAsyncKeyState((int)vk) & 0x8000) != 0;
