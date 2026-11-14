@@ -19,7 +19,7 @@ The pill hides itself when idle. Tray › **Always show status pill** (or left-c
   "new paragraph".
 - Changed your mind mid-sentence? Say "scratch that" and the phrase before it is dropped.
 - You never have to hold the keys: dictate as long as you like and tap Ctrl+Win when you're done. **Ctrl+Win+Space**
-  works the same way. **Esc** cancels. A recording stops and is typed by itself after 5 minutes
+  works the same way. **Esc** cancels. A recording stops and is typed by itself after 10 minutes
   (`MaxDictationSeconds` in the settings file; 0 turns the limit off).
 - Pressing another key together with the Ctrl+Win that starts a recording (for example Ctrl+Win+D) is treated as a
   Windows shortcut: that recording is discarded. Using a Ctrl+Win shortcut while recording keeps the recording going.

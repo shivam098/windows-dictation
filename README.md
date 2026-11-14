@@ -78,7 +78,7 @@ Tray icon › **Open settings file** (`%APPDATA%\VoiceDictation\settings.json`),
 | `snippets` | `{}` | Say the trigger to type the text, e.g. `{"my signature": "Thanks,\nShivam"}` |
 | `newLineKeys` | Notepad, Word, VS Code: `Enter` | Keys for "new line" per app; others use Shift+Enter (a line break, not "send", in chat apps) |
 | `livePreview` | `true` | Show words while you speak (uses extra CPU while recording) |
-| `maxDictationSeconds` | `300` | A recording still going after this long is finished and typed by itself; `0` = no limit |
+| `maxDictationSeconds` | `600` | A recording still going after this long is finished and typed by itself; `0` = no limit |
 | `insertMethod` | `Paste` | `Paste` via the clipboard (restored afterwards, kept out of Clipboard History) or `Type` keystrokes |
 | `removeFillerWords` / `spokenPunctuation` | `true` | Text clean-up |
 | `soundFeedback` | `true` | Short tones when recording starts and stops |
@@ -93,7 +93,7 @@ and open the logs folder. Logs contain timings and errors only, never what you s
 ## Privacy and safety
 
 - The microphone opens when you tap Ctrl+Win (or Ctrl+Win+Space) and closes when you tap it again, press Esc, or
-  after 5 minutes.
+  after 10 minutes.
 - Recognition runs on your CPU with whisper.cpp. Nothing is sent over the network except the one-time model download.
 - Audio and transcripts stay in memory only. The last dictation is kept in memory for Alt+Shift+Z until you exit.
 - Password fields and windows running as administrator are never typed into.

@@ -126,9 +126,9 @@ internal sealed class AppSettings
 
     /// <summary>
     /// A recording that is still going after this many seconds (Ctrl+Win was never tapped again) is finished and
-    /// typed, so the microphone can't stay on by mistake. 0 turns the limit off.
+    /// typed, so the microphone can't stay on by mistake. Default 600 (10 minutes); 0 turns the limit off.
     /// </summary>
-    public int MaxDictationSeconds { get; set; } = 300;
+    public int MaxDictationSeconds { get; set; } = 600;
 
     public bool RemoveFillerWords { get; set; } = true;
 

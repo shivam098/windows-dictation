@@ -135,7 +135,7 @@ DICTATE
   Say "comma", "full stop", "question mark", "new line". "um"/"uh" are removed.
 
 PRIVACY
-  The microphone is on only from one tap of Ctrl+Win to the next (5 minutes at most).
+  The microphone is on only from one tap of Ctrl+Win to the next (10 minutes at most; at the limit the text is typed automatically).
   Speech is transcribed on this PC; audio and text are never uploaded or saved to disk.
   Settings: %APPDATA%\VoiceDictation\settings.json   Models: $(if ($IncludeModels) { 'the models folder next to the app' } else { '%LOCALAPPDATA%\VoiceDictation\models' })
 
