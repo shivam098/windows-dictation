@@ -4,7 +4,7 @@ public static class SpeechSegments
 {
     /// <summary>
     /// Splits audio into chunks of at most <paramref name="maxMs"/> for transcription, cutting only in pauses
-    /// between detected speech regions where possible (long push-to-talk dictation exceeds Whisper's window).
+    /// between detected speech regions where possible (long dictation exceeds Whisper's window).
     /// Returns no chunks when there is no speech.
     /// </summary>
     public static IReadOnlyList<float[]> Chunk(

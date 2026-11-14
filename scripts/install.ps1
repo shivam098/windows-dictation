@@ -178,7 +178,7 @@ $link = $shell.CreateShortcut($Shortcut)
 $link.TargetPath = $Exe
 $link.WorkingDirectory = $InstallDir
 $link.IconLocation = "$Exe,0"
-$link.Description = 'Hold Ctrl+Win and speak to type into any app.'
+$link.Description = 'Tap Ctrl+Win, speak, tap again to type into any app.'
 $link.Save()
 
 $runKey = 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run'
@@ -194,7 +194,7 @@ if (-not $NoLaunch) {
 
 Write-Host ''
 Write-Host 'Installed. Look for the microphone icon in the system tray.' -ForegroundColor Green
-Write-Host '  Hold Ctrl+Win, speak, release -> typed where your cursor is (Ctrl+Win+Space = hands-free, Esc = cancel)'
+Write-Host '  Tap Ctrl+Win, speak, tap Ctrl+Win again -> typed where your cursor is (Esc = cancel)'
 Write-Host '  Alt+Shift+Z pastes the last dictation; Alt+Shift+H switches to Hindi + English'
 if (Get-Process VoiceAssistant -ErrorAction SilentlyContinue) {
     Write-Warning 'Voice Assistant is running and also uses Ctrl+Win, so text would be typed twice. Exit one of them.'

@@ -114,7 +114,7 @@ foreach ($rid in $Runtime) {
 
     @"
 VOICE DICTATION $version  ($rid)
-Hold a key, speak, and your words are typed into any app. Free, and runs fully on this PC.
+Tap a key, speak, tap again, and your words are typed into any app. Free, and runs fully on this PC.
 
 START
   1. Unzip this folder anywhere you like (e.g. Documents).
@@ -126,15 +126,16 @@ START
   Look for the microphone icon in the system tray (bottom-right, maybe under the ^ arrow).
 
 DICTATE
-  Hold Ctrl+Win, speak, release   -> words show live as you speak, then are typed where your cursor is
-  Ctrl+Win+Space                  -> hands-free (press again to finish)
+  Tap Ctrl+Win, speak             -> recording starts (no need to hold); a level meter and your words show live
+  Tap Ctrl+Win again              -> "Transcribing...", then the text is typed where your cursor is
+  Ctrl+Win+Space                  -> same as Ctrl+Win
   Esc cancels  ·  Alt+Shift+Z pastes the last dictation again
   Alt+Shift+H switches to Hindi + English (Hindi typed in Roman letters; downloads ~80 MB once) and back;
   tray > Dictation language has a slower, more accurate Hindi + English option (830 MB download)
   Say "comma", "full stop", "question mark", "new line". "um"/"uh" are removed.
 
 PRIVACY
-  The microphone is on only while you hold the keys (or hands-free is on).
+  The microphone is on only from one tap of Ctrl+Win to the next (10 minutes at most; at the limit the text is typed automatically).
   Speech is transcribed on this PC; audio and text are never uploaded or saved to disk.
   Settings: %APPDATA%\VoiceDictation\settings.json   Models: $(if ($IncludeModels) { 'the models folder next to the app' } else { '%LOCALAPPDATA%\VoiceDictation\models' })
 

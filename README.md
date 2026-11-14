@@ -2,21 +2,23 @@
 
 <h1 align="center">Voice Dictation for Windows</h1>
 
-<p align="center"><b>Hold Ctrl+Win, speak, release. Your words are typed into any app.</b><br>
-Free push-to-talk dictation that runs completely on your PC: no account, no cloud, no subscription.</p>
+<p align="center"><b>Tap Ctrl+Win, speak, tap again. Your words are typed into any app.</b><br>
+Free dictation that runs completely on your PC: no account, no cloud, no subscription.</p>
 
 ---
 
 ## What it does
 
 - **Dictate into any app.** Chat apps, browsers, Word, VS Code, email, terminals: wherever your cursor is.
-- **See your words as you speak.** A small pill at the bottom of the screen shows the live transcript.
+- **No keys to hold.** Tap Ctrl+Win to start, speak as long as you like, tap it again to finish.
+- **See your words as you speak.** A small pill at the bottom of the screen shows a live voice-level meter and the live
+  transcript while it listens, then "Transcribing…" until the text is typed.
 - **Clean text.** filler words are removed ("um", "uh", "basically", "you know", Hinglish "thik hai na?", "Haan to like …", repeated phrases, stray "Ok."); say "comma", "full stop", "question mark", "new line" for punctuation;
   "…scratch that…" drops the phrase before it; a personal dictionary fixes words it gets wrong.
 - **Hindi + English.** Press Alt+Shift+H to dictate Hinglish (Hindi is typed in Roman letters). Press again for English.
   For fewer mistakes, tray › *Dictation language* › *Hindi + English — accurate* uses a larger model (a few seconds per
   phrase, one-time 830 MB download); words still show live while you speak.
-- **Private by design.** The microphone is on only while you hold the keys. Speech is turned into text on this PC by
+- **Private by design.** The microphone is on only between your two taps of Ctrl+Win. Speech is turned into text on this PC by
   [Whisper](https://github.com/openai/whisper); audio and text are never uploaded or saved.
 
 Want to *control* your PC by voice too ("Hey Jarvis, open Chrome", "click Library")? That's the sister project,
@@ -27,8 +29,9 @@ small and focused.
 
 | Keys | What happens |
 |---|---|
-| **Hold Ctrl+Win** | Records while held; release to type the text where your cursor is |
-| **Ctrl+Win+Space** | Hands-free: keeps recording until you press it again |
+| **Ctrl+Win** (tap: press and let go) | Starts recording; no need to keep holding the keys |
+| **Ctrl+Win** again | Stops recording, shows "Transcribing…", then types the text where your cursor is |
+| **Ctrl+Win+Space** | Same as Ctrl+Win (tap to start, tap again to finish) |
 | **Esc** (while recording) | Cancel; nothing is typed |
 | **Alt+Shift+Z** | Paste the last dictation again |
 | **Alt+Shift+H** | Switch between English and Hindi + English |
@@ -75,6 +78,7 @@ Tray icon › **Open settings file** (`%APPDATA%\VoiceDictation\settings.json`),
 | `snippets` | `{}` | Say the trigger to type the text, e.g. `{"my signature": "Thanks,\nShivam"}` |
 | `newLineKeys` | Notepad, Word, VS Code: `Enter` | Keys for "new line" per app; others use Shift+Enter (a line break, not "send", in chat apps) |
 | `livePreview` | `true` | Show words while you speak (uses extra CPU while recording) |
+| `maxDictationSeconds` | `600` | A recording still going after this long is finished and typed by itself; `0` = no limit |
 | `insertMethod` | `Paste` | `Paste` via the clipboard (restored afterwards, kept out of Clipboard History) or `Type` keystrokes |
 | `removeFillerWords` / `spokenPunctuation` | `true` | Text clean-up |
 | `soundFeedback` | `true` | Short tones when recording starts and stops |
@@ -88,7 +92,8 @@ and open the logs folder. Logs contain timings and errors only, never what you s
 
 ## Privacy and safety
 
-- The microphone opens when you press Ctrl+Win (or Ctrl+Win+Space) and closes when you release (or finish).
+- The microphone opens when you tap Ctrl+Win (or Ctrl+Win+Space) and closes when you tap it again, press Esc, or
+  after 10 minutes.
 - Recognition runs on your CPU with whisper.cpp. Nothing is sent over the network except the one-time model download.
 - Audio and transcripts stay in memory only. The last dictation is kept in memory for Alt+Shift+Z until you exit.
 - Password fields and windows running as administrator are never typed into.
